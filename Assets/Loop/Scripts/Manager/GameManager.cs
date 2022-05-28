@@ -29,11 +29,13 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
     Sequence bloomSequence;
     Bloom bloom;
     float bloomDefValue;
-    
+
 
     private void Awake()
     {
         volume.profile.TryGet(out bloom);
+        levelText.text = "";
+        levelText.color = new Color(0, 0, 0, 0);
         if (bloom)
         {
             bloomDefValue = bloom.intensity.value;
@@ -41,10 +43,10 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
             bloomSequence = DOTween.Sequence();
             bloomSequence.SetAutoKill(false);
             bloomSequence.SetLoops(-1, LoopType.Yoyo);
-            bloomSequence.Append(DOVirtual.Float(bloomDefValue,bloomMaxIntensity,5f,(v)=> 
-            {
-                bloom.intensity.value = v;
-            }));
+            bloomSequence.Append(DOVirtual.Float(bloomDefValue, bloomMaxIntensity, 5f, (v) =>
+               {
+                   bloom.intensity.value = v;
+               }));
             bloomSequence.AppendInterval(1f);
 
             bloomSequence.Pause();
@@ -83,7 +85,7 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
         levelText.DOFade(0, .25f);
         PlayerPrefs.SetInt("LevelId", level.levelId + 1);
         nextLevelButton.gameObject.SetActive(false);
-        
+
         bloomSequence?.Pause();
         if (bloom)
             DOVirtual.Float(bloom.intensity.value, bloomDefValue, 1f, (v) =>
@@ -111,62 +113,88 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
         nextLevelButton.gameObject.SetActive(true);
     }
 
-    public void GenerateLevel(Level level)
+    public void GenerateLevel(Level level, bool inGame = true)
     {
         this.level = level;
         var val = levelHolder.rect.width / (float)level.column;
-        ClearLevel();
-        HashSet<Node> nodes = new HashSet<Node>();
-        var nodeDatas = Resources.LoadAll<NodeData>("ScriptableObjects/Nodes").ToList();
-        for (int i = 0; i < level.row; i++)
-        {
-            var row = Instantiate(rowPrefab, levelHolder).GetComponent<RectTransform>();
-            row.sizeDelta = new Vector2(row.rect.width, val);
-            row.localScale = Vector3.one;
-            row.localPosition = Vector3.zero;
-            for (int j = 0; j < level.column; j++)
-            {
-                if (level.levelTiles[i, j] == 0)
-                {
-                    var emptyRect = new GameObject("Empty").AddComponent<RectTransform>();
-                    emptyRect.SetParent(row);
-                    emptyRect.localScale = Vector3.one;
-                    emptyRect.localPosition = Vector3.zero;
-                    emptyRect.sizeDelta = Vector2.one * val;
-                    continue;
-                }
 
-                var nodeRect = Instantiate(nodePrefab, row).GetComponent<RectTransform>();
-                nodeRect.localScale = Vector3.one;
-                nodeRect.localPosition = Vector3.zero;
-                nodeRect.sizeDelta = Vector2.one * val;
-                var node = nodeRect.GetComponent<Node>();
-                node.row = i;
-                node.column = j;
-                nodes.Add(node);
+        StartCoroutine(C_GenerateLevel());
+
+        IEnumerator C_GenerateLevel()
+        {
+            if(inGame)
+                yield return StartCoroutine(C_ClearLevelAnim());
+            ClearLevel();
+            HashSet<Node> nodes = new HashSet<Node>();
+            var nodeDatas = Resources.LoadAll<NodeData>("ScriptableObjects/Nodes").ToList();
+            for (int i = 0; i < level.row; i++)
+            {
+                var row = Instantiate(rowPrefab, levelHolder).GetComponent<RectTransform>();
+                row.sizeDelta = new Vector2(row.rect.width, val);
+                row.localScale = Vector3.one;
+                row.localPosition = Vector3.zero;
+                for (int j = 0; j < level.column; j++)
+                {
+                    if (level.levelTiles[i, j] == 0)
+                    {
+                        var emptyRect = new GameObject("Empty").AddComponent<RectTransform>();
+                        emptyRect.SetParent(row);
+                        emptyRect.localScale = Vector3.one;
+                        emptyRect.localPosition = Vector3.zero;
+                        emptyRect.sizeDelta = Vector2.one * val;
+                        continue;
+                    }
+
+                    var nodeRect = Instantiate(nodePrefab, row).GetComponent<RectTransform>();
+                    nodeRect.localScale = Vector3.one;
+                    nodeRect.localPosition = Vector3.zero;
+                    nodeRect.sizeDelta = Vector2.one * val;
+                    var node = nodeRect.GetComponent<Node>();
+                    node.row = i;
+                    node.column = j;
+                    nodes.Add(node);
+                }
             }
+            levelNodes = nodes.ToList();
+            foreach (var n in nodes)
+            {
+                var neighborCount = SetNeighbors(n, out bool straight);
+                n.Initialize(nodeDatas.FindAll(d => d.openTips.Count == neighborCount && d.straight == straight).RandomItem());
+            }
+
+            if (inGame)
+                yield return StartCoroutine(C_GenerateLevelAnim());
+            DOVirtual.DelayedCall(.25f, () =>
+            {
+                levelText.text = $"Level {level.levelId}";
+                levelText.DOFade(1, .25f).SetDelay(.25f);
+            });
         }
-        levelNodes = nodes.ToList();
-        foreach (var n in nodes)
-        {
-            var neighborCount = SetNeighbors(n, out bool straight);
-            n.Initialize(nodeDatas.FindAll(d => d.openTips.Count == neighborCount && d.straight == straight).RandomItem());
-        }
-        DOVirtual.DelayedCall(.25f, () =>
-        {
-            levelText.text = $"Level {level.levelId}";
-            levelText.DOFade(1, .25f).SetDelay(.25f);
-        });
     }
 
+    private IEnumerator C_ClearLevelAnim()
+    {
+        yield return levelHolder.transform.DOScale(0f, .5f).SetEase(Ease.InBack).WaitForCompletion();
+    }
+
+    private IEnumerator C_GenerateLevelAnim()
+    {
+        for (int i = 0; i < levelNodes.Count; i++)
+        {
+            levelNodes[i].transform.localScale = Vector3.zero;
+            levelNodes[i].transform.DOScale(1f, .5f).SetDelay(i*.05f).SetEase(Ease.OutBack);
+        }
+        yield return new WaitForSeconds(levelNodes.Count*.05f + .75f);
+    }
     public void ClearLevel()
     {
         levelHolder.DestroyAllChildren(true);
         if (levelHolder.childCount > 0)
             ClearLevel();
+        levelHolder.transform.localScale = Vector3.one;
     }
 
-    public void GenerateRandomLevel()
+    public void GenerateRandomLevel(bool inGame = true)
     {
         Level level = new Level();
 
@@ -198,7 +226,7 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
         }
 
 
-        GenerateLevel(level);
+        GenerateLevel(level, inGame);
     }
 }
 
@@ -212,7 +240,7 @@ public class GameManagerEditor : Editor
         DrawDefaultInspector();
         GameManager gM = (GameManager)target;
         if (GUILayout.Button("Generate Level"))
-            gM.GenerateRandomLevel();
+            gM.GenerateRandomLevel(false);
         if (GUILayout.Button("Clear Level"))
             gM.ClearLevel();
     }
