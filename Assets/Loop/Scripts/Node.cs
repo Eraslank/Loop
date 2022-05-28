@@ -16,6 +16,9 @@ public class Node : MonoBehaviour, IPointerClickHandler
     public EDirection rotateState = EDirection.Up;
     public int row, column;
 
+    [Header("SFX")]
+    [SerializeField] AudioClip tapSound;
+
     private void Start()
     {
         GameManager.Instance.SetNeighbors(this, out _);
@@ -34,6 +37,7 @@ public class Node : MonoBehaviour, IPointerClickHandler
         if (!canRotate)
             return;
         canRotate = false;
+        SFXManager.Instance.PlaySFX(tapSound);
         transform.DORotate(new Vector3(0, 0, transform.eulerAngles.z - 90), .25f, RotateMode.FastBeyond360)
         .SetEase(Ease.InOutCirc)
         .OnComplete(() => 

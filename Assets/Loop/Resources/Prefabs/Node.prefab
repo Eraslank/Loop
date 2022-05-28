@@ -93,3 +93,4 @@ MonoBehaviour:
   rotateState: 0
   row: 0
   column: 0
+  tapSound: {fileID: 8300000, guid: aac59a940b7077c4a84ded853630a718, type: 3}

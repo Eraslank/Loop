@@ -23,6 +23,11 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
     [SerializeField] GameObject rowPrefab;
     [SerializeField] GameObject nodePrefab;
 
+    [Header("SFX")]
+    [SerializeField] List<AudioClip> levelDisappearSFX;
+    [SerializeField] List<AudioClip> levelAppearSFX;
+    [SerializeField] List<AudioClip> levelCompletedSFX;
+
     [Header("Post Process")]
     [SerializeField] Volume volume;
     [SerializeField] float bloomMaxIntensity;
@@ -35,7 +40,7 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
     {
         volume.profile.TryGet(out bloom);
         levelText.text = "";
-        levelText.color = new Color(0, 0, 0, 0);
+        levelText.color = new Color(1, 1, 1, 0);
         if (bloom)
         {
             bloomDefValue = bloom.intensity.value;
@@ -107,6 +112,7 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
         if (PlayerPrefs.GetInt("LastCompleted") < level.levelId)
             PlayerPrefs.SetInt("LastCompleted", level.levelId);
 
+        SFXManager.Instance.PlaySFX(levelCompletedSFX.RandomItem());
 
         bloomSequence?.Restart();
 
@@ -174,6 +180,7 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
 
     private IEnumerator C_ClearLevelAnim()
     {
+        SFXManager.Instance.PlaySFX(levelDisappearSFX.RandomItem());
         yield return levelHolder.transform.DOScale(0f, .5f).SetEase(Ease.InBack).WaitForCompletion();
     }
 
@@ -183,6 +190,10 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
         {
             levelNodes[i].transform.localScale = Vector3.zero;
             levelNodes[i].transform.DOScale(1f, .5f).SetDelay(i*.05f).SetEase(Ease.OutBack);
+            DOVirtual.DelayedCall(i * .05f, () =>
+            {
+                SFXManager.Instance.PlaySFX(levelAppearSFX.RandomItem());
+            });
         }
         yield return new WaitForSeconds(levelNodes.Count*.05f + .75f);
     }

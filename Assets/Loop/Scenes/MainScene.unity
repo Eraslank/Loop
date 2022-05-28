@@ -158,6 +158,12 @@ MonoBehaviour:
   levelText: {fileID: 1987588836}
   rowPrefab: {fileID: 3333615673880989160, guid: bc2d1c21d6f93774e95adb1fcaa5ad98, type: 3}
   nodePrefab: {fileID: 5207069773549062343, guid: c148dc6526a963645adadf7f49cc957d, type: 3}
+  levelDisappearSFX:
+  - {fileID: 8300000, guid: 57cce24ccc3f7304c965285c23e832f5, type: 3}
+  levelAppearSFX:
+  - {fileID: 8300000, guid: de4acb1f31df4fc4ab8930c866933017, type: 3}
+  levelCompletedSFX:
+  - {fileID: 8300000, guid: 3c6e720eaa717c44fa6222332346b504, type: 3}
   volume: {fileID: 434198258}
   bloomMaxIntensity: 8
 --- !u!4 &349107318
