@@ -6,6 +6,8 @@ using UnityEditor;
 using Newtonsoft.Json;
 using UnityEngine.UI;
 using DG.Tweening;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 public class GameManager : MonoBehaviourSingleton<GameManager>
 {
@@ -21,8 +23,32 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
     [SerializeField] GameObject rowPrefab;
     [SerializeField] GameObject nodePrefab;
 
+    [Header("Post Process")]
+    [SerializeField] Volume volume;
+    [SerializeField] float bloomMaxIntensity;
+    Sequence bloomSequence;
+    Bloom bloom;
+    float bloomDefValue;
+    
+
     private void Awake()
     {
+        volume.profile.TryGet(out bloom);
+        if (bloom)
+        {
+            bloomDefValue = bloom.intensity.value;
+
+            bloomSequence = DOTween.Sequence();
+            bloomSequence.SetAutoKill(false);
+            bloomSequence.SetLoops(-1, LoopType.Yoyo);
+            bloomSequence.Append(DOVirtual.Float(bloomDefValue,bloomMaxIntensity,5f,(v)=> 
+            {
+                bloom.intensity.value = v;
+            }));
+            bloomSequence.AppendInterval(1f);
+
+            bloomSequence.Pause();
+        }
         nextLevelButton.gameObject.SetActive(false);
         backButton.onClick.AddListener(() =>
         {
@@ -57,6 +83,13 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
         levelText.DOFade(0, .25f);
         PlayerPrefs.SetInt("LevelId", level.levelId + 1);
         nextLevelButton.gameObject.SetActive(false);
+        
+        bloomSequence?.Pause();
+        if (bloom)
+            DOVirtual.Float(bloom.intensity.value, bloomDefValue, 1f, (v) =>
+               {
+                   bloom.intensity.value = v;
+               });
         GenerateRandomLevel();
     }
 
@@ -71,6 +104,9 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
         }
         if (PlayerPrefs.GetInt("LastCompleted") < level.levelId)
             PlayerPrefs.SetInt("LastCompleted", level.levelId);
+
+
+        bloomSequence?.Restart();
 
         nextLevelButton.gameObject.SetActive(true);
     }
@@ -116,9 +152,11 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
             var neighborCount = SetNeighbors(n, out bool straight);
             n.Initialize(nodeDatas.FindAll(d => d.openTips.Count == neighborCount && d.straight == straight).RandomItem());
         }
-
-        levelText.text = $"Level {level.levelId}";
-        levelText.DOFade(1, .25f).SetDelay(.25f);
+        DOVirtual.DelayedCall(.25f, () =>
+        {
+            levelText.text = $"Level {level.levelId}";
+            levelText.DOFade(1, .25f).SetDelay(.25f);
+        });
     }
 
     public void ClearLevel()
