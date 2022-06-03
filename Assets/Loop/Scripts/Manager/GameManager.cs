@@ -162,14 +162,24 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
     {
         currentStars = 3;
         this.level = level;
-        var val = levelHolder.rect.width / (float)level.column;
+        Debug.Log(levelHolder.rect.width);
 
         StartCoroutine(C_GenerateLevel());
 
         IEnumerator C_GenerateLevel()
         {
+            float val = 0;
             if(inGame)
+            {
                 yield return StartCoroutine(C_ClearLevelAnim());
+                yield return new WaitForEndOfFrame();
+                val = levelHolder.rect.width;
+                if (level.column == level.row)
+                    val /= (float)level.column;
+                else
+                    val /= (float)(level.column + level.row) * .5f;
+                //val = levelHolder.rect.width / (float)(/*level.row > level.column ? level.row : */level.column + level.row)*2f;
+            }
             ClearLevel();
             HashSet<Node> nodes = new HashSet<Node>();
             var nodeDatas = Resources.LoadAll<NodeData>("ScriptableObjects/Nodes").ToList();
@@ -214,6 +224,7 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
             {
                 levelText.text = $"Level {level.levelId}";
                 levelText.DOFade(1, .25f);
+                Debug.Log(levelHolder.rect.width);
             });
 
             StartCoroutine(C_StarFill(Mathf.Clamp(nodes.Count * .9f, 8, int.MaxValue)));
@@ -256,8 +267,9 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
     public void GenerateRandomLevel(bool inGame = true)
     {
         var levelId = LevelManager.Instance.UserLevel.currentLevelId;
+        Random.InitState(levelId);
 
-        if(LevelManager.Instance.levels.TryGetValue(levelId,out Level l))
+        if (LevelManager.Instance.levels.TryGetValue(levelId,out Level l))
         {
             GenerateLevel(l, inGame);
             return;
@@ -267,7 +279,6 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
 
         level.levelId = levelId;
 
-        Random.InitState(level.levelId);
 
         level.row = Random.Range(4, 7);
 
