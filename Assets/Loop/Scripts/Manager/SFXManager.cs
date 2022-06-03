@@ -14,9 +14,8 @@ public class SFXManager : MonoBehaviourSingletonPersistent<SFXManager>
     [SerializeField] AudioSource musicAS;
     [SerializeField] List<MusicSettings> musics;
 
-    public override void Awake()
+    private void Start()
     {
-        base.Awake();
         aS.volume = 0f;
         aS.DOFade(ambientVolume, 1f);
 

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class MainPage : Page, IConfigurablePage
 {
@@ -8,17 +9,14 @@ public class MainPage : Page, IConfigurablePage
 
     public void ConfigurePage(bool isFirstTime = false)
     {
-        if (!PlayerPrefs.HasKey("LastCompleted"))
-            PlayerPrefs.SetInt("LastCompleted", 0);
-
-        int lastCompleted = PlayerPrefs.GetInt("LastCompleted");
+        int lastCompleted = LevelManager.Instance.UserLevel.lastCompleted;
 
         levelsButton.SetActive(lastCompleted != 0);
     }
 
     public void OnPlayButtonClick()
     {
-        PlayerPrefs.SetInt("LevelId", PlayerPrefs.GetInt("LastCompleted") + 1);
-        SceneChangeManager.Instance.ChangeScene("MainScene");
+        LevelManager.Instance.UserLevel.currentLevelId = LevelManager.Instance.UserLevel.lastCompleted + 1;
+        SceneManager.LoadScene(1);
     }
 }

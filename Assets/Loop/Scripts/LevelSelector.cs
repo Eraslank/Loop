@@ -17,7 +17,7 @@ public class LevelSelector : MonoBehaviour
     {
         canvasGroup = GetComponent<CanvasGroup>();
         levelButton = GetComponentsInChildren<Levels>();
-        unlockedLevel = PlayerPrefs.GetInt("LastCompleted") + 1;
+        unlockedLevel = LevelManager.Instance.UserLevel.lastCompleted + 1;
         totalUnlockedLevel = (Mathf.CeilToInt((unlockedLevel) / (float)pageItem)) * pageItem;
         page = totalUnlockedLevel / pageItem;
         Refresh();

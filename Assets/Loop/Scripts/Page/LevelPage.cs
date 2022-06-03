@@ -14,10 +14,10 @@ public class LevelPage : Page
 
         levelInputField.text = inputLevel.ToString();
 
-        if (inputLevel == 0 || inputLevel > PlayerPrefs.GetInt("LastCompleted") + 1)
+        if (inputLevel == 0 || inputLevel > LevelManager.Instance.UserLevel.lastCompleted + 1)
             return;
 
-        PlayerPrefs.SetInt("LevelId", inputLevel);
-        SceneChangeManager.Instance.ChangeScene("MainScene");
+        LevelManager.Instance.UserLevel.currentLevelId = inputLevel;
+        UnityEngine.SceneManagement.SceneManager.LoadScene(1);
     }
 }

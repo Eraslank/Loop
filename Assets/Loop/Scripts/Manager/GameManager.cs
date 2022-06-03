@@ -35,10 +35,17 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
     Bloom bloom;
     float bloomDefValue;
 
+    [SerializeField] Image star1;
+    [SerializeField] Image star2;
+    [SerializeField] Image star3;
+
+    int currentStars = 3;
+
 
     private void Awake()
     {
         volume.profile.TryGet(out bloom);
+        star1.fillAmount = star2.fillAmount = star3.fillAmount = 0f;
         levelText.text = "";
         levelText.color = new Color(1, 1, 1, 0);
         if (bloom)
@@ -59,7 +66,7 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
         nextLevelButton.gameObject.SetActive(false);
         backButton.onClick.AddListener(() =>
         {
-            SceneChangeManager.Instance.ChangeScene("MainMenu");
+            UnityEngine.SceneManagement.SceneManager.LoadScene(0);
         });
         levelNodes = Resources.FindObjectsOfTypeAll<Node>().ToList();
         GenerateRandomLevel();
@@ -88,7 +95,7 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
     public void NextLevel()
     {
         levelText.DOFade(0, .25f);
-        PlayerPrefs.SetInt("LevelId", level.levelId + 1);
+        LevelManager.Instance.UserLevel.currentLevelId = level.levelId + 1;
         nextLevelButton.gameObject.SetActive(false);
 
         bloomSequence?.Pause();
@@ -109,18 +116,51 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
                 return;
             }
         }
-        if (PlayerPrefs.GetInt("LastCompleted") < level.levelId)
-            PlayerPrefs.SetInt("LastCompleted", level.levelId);
+
+        var userLevel = LevelManager.Instance.UserLevel;
+
+        if (userLevel.lastCompleted < level.levelId)
+            userLevel.lastCompleted = level.levelId;
+
+        if (userLevel.stars.ContainsKey(level.levelId))
+            userLevel.stars[level.levelId] = Mathf.Max(userLevel.stars[level.levelId], currentStars);
+        else
+            userLevel.stars.Add(level.levelId, currentStars);
+                
+        LevelManager.Instance.SaveUserLevel();
 
         SFXManager.Instance.PlaySFX(levelCompletedSFX.RandomItem());
+        StopCoroutine("C_StarFill");
+        starFillTween?.Pause();
+        starFillTween = ((Image)starFillTween.target).DOFillAmount(1, .5f);
+
 
         bloomSequence?.Restart();
 
         nextLevelButton.gameObject.SetActive(true);
     }
+    Tween starFillTween;
+    IEnumerator C_StarFill(float startDelay)
+    {
+        starFillTween = star1.DOFillAmount(0, startDelay).SetEase(Ease.Linear);
+        yield return starFillTween.WaitForCompletion();
+
+        currentStars--;
+
+        starFillTween = star2.DOFillAmount(0, 20f).SetEase(Ease.Linear);
+        yield return starFillTween.WaitForCompletion();
+
+        currentStars--;
+
+        starFillTween = star3.DOFillAmount(0, 20f).SetEase(Ease.Linear);
+        yield return starFillTween.WaitForCompletion();
+
+        currentStars--;
+    }
 
     public void GenerateLevel(Level level, bool inGame = true)
     {
+        currentStars = 3;
         this.level = level;
         var val = levelHolder.rect.width / (float)level.column;
 
@@ -173,19 +213,27 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
             DOVirtual.DelayedCall(.25f, () =>
             {
                 levelText.text = $"Level {level.levelId}";
-                levelText.DOFade(1, .25f).SetDelay(.25f);
+                levelText.DOFade(1, .25f);
             });
+
+            StartCoroutine(C_StarFill(Mathf.Clamp(nodes.Count * .9f, 8, int.MaxValue)));
         }
     }
 
     private IEnumerator C_ClearLevelAnim()
     {
+        star1.DOFillAmount(0f, .5f).SetEase(Ease.InQuad);
+        star2.DOFillAmount(0f, .5f).SetEase(Ease.InQuad);
+        star3.DOFillAmount(0f, .5f).SetEase(Ease.InQuad);
         SFXManager.Instance.PlaySFX(levelDisappearSFX.RandomItem());
         yield return levelHolder.transform.DOScale(0f, .5f).SetEase(Ease.InBack).WaitForCompletion();
     }
 
     private IEnumerator C_GenerateLevelAnim()
     {
+        star1.DOFillAmount(1, 1f).SetEase(Ease.OutQuad);
+        star2.DOFillAmount(1, 1f).SetEase(Ease.OutQuad).SetDelay(.25f);
+        star3.DOFillAmount(1, 1f).SetEase(Ease.OutQuad).SetDelay(.5f);
         for (int i = 0; i < levelNodes.Count; i++)
         {
             levelNodes[i].transform.localScale = Vector3.zero;
@@ -207,9 +255,17 @@ public class GameManager : MonoBehaviourSingleton<GameManager>
 
     public void GenerateRandomLevel(bool inGame = true)
     {
+        var levelId = LevelManager.Instance.UserLevel.currentLevelId;
+
+        if(LevelManager.Instance.levels.TryGetValue(levelId,out Level l))
+        {
+            GenerateLevel(l, inGame);
+            return;
+        }
+
         Level level = new Level();
 
-        level.levelId = PlayerPrefs.GetInt("LevelId");
+        level.levelId = levelId;
 
         Random.InitState(level.levelId);
 

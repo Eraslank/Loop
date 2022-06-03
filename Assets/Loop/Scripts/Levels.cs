@@ -6,39 +6,33 @@ using UnityEngine.UI;
 
 public class Levels : MonoBehaviour
 {
-    public Sprite lockSprite;
     public Text levelText;
     private int level = 0;
-    private Button button;
-    private Image image;
-    private void OnEnable()
-    {
-        button = GetComponent<Button>();
-        image = transform.GetChild(1).GetComponent<Image>();
-    }
+    [SerializeField] private Button button;
+    [SerializeField] private Image lockImage;
+    [SerializeField] private Image starCountImage;
     public void Setup(int level, bool isUnlock)
     {
         this.level = level;
         levelText.text = level.ToString();
-        if (isUnlock)
-        {
-            LockLevel(isUnlock, true, true);
-        }
-        else
-        {
-            LockLevel(isUnlock, false, false);
-        }
+
+        var stars = LevelManager.Instance.UserLevel.stars;
+        starCountImage.fillAmount = 0;
+        if(stars.ContainsKey(level))
+            starCountImage.fillAmount = stars[level] == 3 ? 1 : stars[level] * .33f;
+
+        LockLevel(isUnlock);
     }
-    private void LockLevel(bool isUnlock, bool buttonVisibility, bool text)
+    private void LockLevel(bool isUnlock)
     {
-        image.gameObject.SetActive(!isUnlock);
-        button.enabled = buttonVisibility;
-        levelText.gameObject.SetActive(text);
+        lockImage.gameObject.SetActive(!isUnlock);
+        button.enabled = isUnlock;
+        levelText.gameObject.SetActive(isUnlock);
     }
     public void OnClick()
     {
-        PlayerPrefs.SetInt("LevelId",int.Parse(levelText.text));
-        SceneChangeManager.Instance.ChangeScene("MainScene");
+        LevelManager.Instance.UserLevel.currentLevelId = int.Parse(levelText.text);
+        UnityEngine.SceneManagement.SceneManager.LoadScene(1);
     }
 
 }
